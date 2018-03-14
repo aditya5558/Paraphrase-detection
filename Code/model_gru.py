@@ -81,7 +81,7 @@ class model:
 			self.weights.append(np.random.randn(self.embed_dim))
 			
 			self.weights = np.stack(self.weights)
-			
+
 			self.vocab_size = self.weights.shape[0]
 
 			print('Saving word2idx to: ' + word2idx_cache_file)
@@ -249,8 +249,8 @@ if __name__ == '__main__':
 
 		context_rnn_hidden_size = 100
 
-		sentence_enc_fw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
-		sentence_enc_bw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
+		sentence_enc_fw = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)
+		sentence_enc_bw = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)
 
 		# Sentence 1
 		# Shape (batch_size, sequence_length, rnn_hidden_size)
@@ -334,8 +334,8 @@ if __name__ == '__main__':
 
 		with tf.variable_scope("agg_1",reuse=tf.AUTO_REUSE):
 
-			aggregation_enc_fw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
-			aggregation_enc_bw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)	
+			aggregation_enc_fw = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)
+			aggregation_enc_bw = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)	
 
 			# Shape (batch_size, sequence_length, rnn_hidden_size)
 
@@ -375,8 +375,8 @@ if __name__ == '__main__':
 		with tf.variable_scope("agg_2",reuse=tf.AUTO_REUSE):
 
 
-			aggregation_enc_fw_2 = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
-			aggregation_enc_bw_2 = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
+			aggregation_enc_fw_2 = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)
+			aggregation_enc_bw_2 = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)
 
 			# Shape (batch_size, sequence_length, rnn_hidden_size)
 

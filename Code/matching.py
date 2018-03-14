@@ -4,8 +4,16 @@ eps = 1e-6
 
 def cosine_sim(x1,x2):
 
+	# x1 shape : (batch_size, 1, sequence_length, rnn_hidden_size)
+	# x2 shape : (batch_size, sequence_length, 1, rnn_hidden_size)
+
+	# Shape : (batch_size, sequence_length, sequence_length)
 	numerator = tf.reduce_sum(tf.multiply(x1,x2),axis=-1)
+
+	# Shape : (batch_size, 1, sequence_length)
 	x1_norm = tf.sqrt(tf.maximum(tf.reduce_sum(tf.square(x1),axis=-1),eps))
+
+	# Shape : (batch_size, sequence_length, 1)
 	x2_norm = tf.sqrt(tf.maximum(tf.reduce_sum(tf.square(x2),axis=-1),eps))
 
 	return numerator / (x1_norm * x2_norm)
@@ -13,47 +21,50 @@ def cosine_sim(x1,x2):
 
 def cosine_matrix(x1,x2):
 
+	# x1 shape : (batch_size, sequence_length, rnn_hidden_size)
+	# x2 shape : (batch_size, sequence_length, rnn_hidden_size)
+
+	# Shape : (batch_size, 1, sequence_length, rnn_hidden_size)
 	x1_exp = tf.expand_dims(x1,1)
+
+	# Shape : (batch_size, sequence_length, 1, rnn_hidden_size)
 	x2_exp = tf.expand_dims(x2,2)
 
+	# Shape : (batch_size, sequence_length, sequence_length, rnn_hidden_size)
 	cosine_sim_matrix = cosine_sim(x1_exp,x2_exp)
 
 	return cosine_sim_matrix
 
 def get_last_output(output):
 
-	print tf.shape(output)[1]
+	#print tf.shape(output)[1]
+	
 	output = tf.transpose(output, [1, 0, 2])
 	last = tf.gather(output, int(output.get_shape()[0]) - 1)
+	
 	#last = tf.gather(output, int(tf.shape(output)[0]) - 1)
 
+	# Shape : (batch_size, 1, rnn_hidden_size) 
 	return last
 
-# def get_last_output(output, length):
-	
-# 	print tf.shape(output)
-# 	batch_size = tf.shape(output)[0]
-# 	max_length = tf.shape(output)[1]
-# 	out_size = int(output.get_shape()[2])
-
-# 	print batch_size,max_length,out_size
-
-# 	index = tf.range(0, batch_size,dtype="int32") * max_length + (length - 1)
-# 	flat = tf.reshape(output, [-1, out_size])
-# 	relevant = tf.gather(flat, index)
-# 	return relevant
 
 def expand_1D(t,weights):
 
+	# Shape : (1, rnn_hidden_size)
 	t_exp = tf.expand_dims(t,axis=0)
 
+	# Shape : (perspectives, rnn_hidden_size)
 	return tf.multiply(t_exp,weights)
 
 def expand_2D(t,weights):
 
+	# Shape : (sequence_length, 1, rnn_hidden_size)
 	t_exp = tf.expand_dims(t,axis=1)
+
+	# Shape : (1, perspectives, rnn_hidden_size)
 	weights_exp = tf.expand_dims(weights,axis=0)
 
+	# Shape : (sequence_length, perspectives, rnn_hidden_size)
 	return tf.multiply(t_exp,weights_exp)
 
 
@@ -61,17 +72,25 @@ def full_matching(sentence_a_full,sentence_b_last,weights):
 
 	def single_func(input):
 
+		# Shape : (sequence_length, rnn_hidden_size)
 		sentence_a_single = input[0]
+
+		# Shape : (rnn_hidden_size)
 		sentence_b_last_single = input[1]
 
+		# Shape : (sequence_length, perspectives, rnn_hidden_size)
 		sentence_a_single = expand_2D(sentence_a_single,weights)
+
+		# Shape : (perspectives, rnn_hidden_size)
 		sentence_b_last_single = expand_1D(sentence_b_last_single,weights)
 
-		sentence_b_last_single = tf.expand_dims(sentence_b_last_single,0)
+		# Shape : (1, perspectives, rnn_hidden_size)
+ 		sentence_b_last_single = tf.expand_dims(sentence_b_last_single,0)
 
+ 		# Shape : (sequence_length, perspectives)
 		return cosine_sim(sentence_a_single,sentence_b_last_single)
 
-
+	# Shape : (batch_size, sequence_length, perspectives)
 	return tf.map_fn(single_func,(sentence_a_full,sentence_b_last),dtype="float")
 
 
@@ -80,29 +99,41 @@ def pooling_matching(sentence_a_full,sentence_b_full,weights):
 
 	def single_func(input):
 
+		# Shape : (sequence_length, rnn_hidden_size)
 		sentence_a_single = input[0]
+
+		# Shape : (sequence_length, rnn_hidden_size)
 		sentence_b_single = input[1]
 
-		sentence_a_single = expand_2D(sentence_a_single,weights)
+		# Shape : (sequence_length, perspectives, rnn_hidden_size)
+		sentence_a_single = expand_2D(sentence_a_single,weights)			
 		sentence_b_single = expand_2D(sentence_b_single,weights)
 
-
+		# Shape : (sequence_length, 1, perspectives, rnn_hidden_size)
 		sentence_a_single = tf.expand_dims(sentence_a_single,1)
+
+		# Shape : (1, sequence_length, perspectives, rnn_hidden_size)
 		sentence_b_single = tf.expand_dims(sentence_b_single,0)
 
+		# Shape : (sequence_length, sequence_length, perspectives)
 		return cosine_sim(sentence_a_single,sentence_b_single)
 
-
+	# Shape : (batch_size, sequence_length, sequence_length, perspectives)
 	match_matrix = tf.map_fn(single_func,(sentence_a_full,sentence_b_full),dtype="float")
 
+	# Shape : (batch_size, sequence_length, perspectives)
 	return tf.reduce_max(match_matrix,axis=2)
 
 
 def weighted_sim(sentence,sim_mat):
 
+	# Shape : (batch_size, sequence_length, sequence_length, 1)
 	sim_mat_exp = tf.expand_dims(sim_mat,-1)
+
+	# Shape : (batch_size, 1, sequence_length, rnn_hidden_size)
 	sentence = tf.expand_dims(sentence,1)
 
+	# Shape : (batch_size, sequence_length, rnn_hidden_size)
 	weighted_sim_mat = tf.reduce_sum(tf.multiply(sentence,sim_mat_exp),axis=1)
 
 	weighted_sim_mat = tf.div(weighted_sim_mat,tf.expand_dims(tf.add(tf.reduce_sum(sim_mat,axis=-1),eps),axis=-1))
@@ -114,13 +145,18 @@ def max_sim(sentence_b_full,sim_mat):
 
 	def single_func(input):
 
+		# Shape : (sequence_length, rnn_hidden_size)
 		sentence_b_single = input[0]
+
+		# Shape : (sequence_length)
 		max_index = input[1]
 
+		# Shape : (sequence_length, rnn_hidden_size)
 		return tf.gather(sentence_b_single,max_index)
 
 	max_index = tf.arg_max(sim_mat,2)
 
+	# Shape : (batch_size, sequence_length, rnn_hidden_size)
 	return tf.map_fn(single_func,(sentence_b_full,max_index),dtype="float")
 
 
@@ -128,16 +164,20 @@ def attentive_matching(sentence_a_full,weighted_sim_mat,weights):
 
 	def single_func(input):
 
+		# Shape : (sequence_length, rnn_hidden_size)
 		sentence_a_single = input[0]
+
+		# Shape : (sequence_length, rnn_hidden_size)
 		sentence_b_single_att = input[1]
 
+		# Shape : (sequence_length, perspectives, rnn_hidden_size)
 		sentence_a_single = expand_2D(sentence_a_single,weights)
 		sentence_b_single_att = expand_2D(sentence_b_single_att,weights)
 
-
+		# Shape : (sequence_length, perspectives)
 		return cosine_sim(sentence_a_single,sentence_b_single_att)
 
-
+	# Shape : (batch_size, sequence_length, perspectives)
 	return tf.map_fn(single_func,(sentence_a_full,weighted_sim_mat),dtype="float")
 
 
