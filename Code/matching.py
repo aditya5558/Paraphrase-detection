@@ -134,7 +134,7 @@ def weighted_sim(sentence,sim_mat):
 	sentence = tf.expand_dims(sentence,1)
 
 	# Shape : (batch_size, sequence_length, rnn_hidden_size)
-	weighted_sim_mat = tf.reduce_sum(tf.multiply(sentence,sim_mat_exp),axis=1)
+	weighted_sim_mat = tf.reduce_sum(tf.multiply(sentence,sim_mat_exp),axis=2)
 
 	weighted_sim_mat = tf.div(weighted_sim_mat,tf.expand_dims(tf.add(tf.reduce_sum(sim_mat,axis=-1),eps),axis=-1))
 
