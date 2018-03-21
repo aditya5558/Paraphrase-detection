@@ -14,6 +14,14 @@ def one_hot(batch_size,Y):
 
     return B.astype(int)
 
+def length(sequence):
+	
+	used = tf.sign(sequence)
+	length = tf.reduce_sum(used, 1)
+	length = tf.cast(length, tf.int32)
+	
+	return length
+
 class model:
 
 
@@ -81,7 +89,7 @@ class model:
 			self.weights.append(np.random.randn(self.embed_dim))
 			
 			self.weights = np.stack(self.weights)
-
+			
 			self.vocab_size = self.weights.shape[0]
 
 			print('Saving word2idx to: ' + word2idx_cache_file)
@@ -111,6 +119,9 @@ class model:
 			self.sentence_two = []
 			self.y_true = []
 
+			max1 = 0
+			max2 = 0
+
 			for index, line in enumerate(file1):
 				
 				if index == 0:
@@ -134,17 +145,29 @@ class model:
 				s_2.extend([self.word2idx.get(word,self.word2idx['UNK']) for word in words])
 				
 
+				if len(s_1) > max1:
+					max1 = len(s_1)
+
+				if len(s_2) > max2:
+					max2 = len(s_2)
 
 				self.y_true.append(np.asarray(values[0]))
 
-				self.sentence_one.append(np.asarray(s_1[0:self.sen_len]))
-				self.sentence_two.append(np.asarray(s_2[0:self.sen_len]))
+				self.sentence_one.append(np.pad(s_1,(0,31-len(s_1)),'constant',constant_values=(0)))
+				self.sentence_two.append(np.pad(s_2,(0,31-len(s_2)),'constant',constant_values=(0)))
+
+
+				# self.sentence_one.append(np.asarray(s_1[0:self.sen_len]))
+				# self.sentence_two.append(np.asarray(s_2[0:self.sen_len]))
 
 		self.sentence_one = np.stack(self.sentence_one)
 		self.sentence_two = np.stack(self.sentence_two)
 		self.y_true = np.stack(self.y_true)
 
 		#print self.weights
+
+		print "Max_train:",max1,max2
+
 		print self.sentence_one.shape,self.sentence_two.shape,self.y_true.shape
 		
 		#print self.sentence_one
@@ -169,6 +192,9 @@ class model:
 			self.sentence_two_test = []
 			self.y_true_test = []
 
+			max1 = 0
+			max2 = 0
+
 			for index, line in enumerate(file1):
 				
 				if index == 0:
@@ -189,12 +215,22 @@ class model:
 				
 				s_2.extend([self.word2idx.get(word,self.word2idx['UNK']) for word in words])
 				
+				if len(s_1) > max1:
+					max1 = len(s_1)
+
+				if len(s_2) > max2:
+					max2 = len(s_2)
 
 
 				self.y_true_test.append(np.asarray(values[0]))
 
-				self.sentence_one_test.append(np.asarray(s_1[0:self.sen_len]))
-				self.sentence_two_test.append(np.asarray(s_2[0:self.sen_len]))
+				self.sentence_one_test.append(np.pad(s_1,(0,31-len(s_1)),'constant',constant_values=(0)))
+				self.sentence_two_test.append(np.pad(s_2,(0,31-len(s_2)),'constant',constant_values=(0)))
+
+				# self.sentence_one_test.append(np.asarray(s_1[0:self.sen_len]))
+				# self.sentence_two_test.append(np.asarray(s_2[0:self.sen_len]))
+
+		print "Max_test:",max1,max2
 
 		self.sentence_one_test = np.stack(self.sentence_one_test)
 		self.sentence_two_test = np.stack(self.sentence_two_test)
@@ -208,7 +244,7 @@ if __name__ == '__main__':
 	
 	x = model()
 
-	x.sen_len = 5
+	x.sen_len = 31
 
 	x.load_glove()
 	x.load_dataset()
@@ -232,8 +268,6 @@ if __name__ == '__main__':
 		initializer = X_init,
 		trainable = False)
 
-	# sentence_one_len = tf.shape(sentence_one)[1]
-	# sentence_two_len = tf.shape(sentence_two)[1]
 
 	# print sentence_one_len
 
@@ -249,8 +283,8 @@ if __name__ == '__main__':
 
 		context_rnn_hidden_size = 100
 
-		sentence_enc_fw = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)
-		sentence_enc_bw = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)
+		sentence_enc_fw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
+		sentence_enc_bw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
 
 		# Sentence 1
 		# Shape (batch_size, sequence_length, rnn_hidden_size)
@@ -259,7 +293,7 @@ if __name__ == '__main__':
 		    cell_fw=sentence_enc_fw,
 		    cell_bw=sentence_enc_bw,
 		    dtype=tf.float32,
-		    # sequence_length=sentence_one_len,
+		    #sequence_length=length(sentence_one),
 		    inputs=embedded_sentence_one)
 
 		output_fw_1, output_bw_1 = outputs_1
@@ -286,7 +320,7 @@ if __name__ == '__main__':
 		    cell_fw=sentence_enc_fw,
 		    cell_bw=sentence_enc_bw,
 		    dtype=tf.float32,
-		    # sequence_length=sentence_two_len,
+		    #sequence_length=length(sentence_two),
 		    inputs=embedded_sentence_two)
 		 
 		output_fw_2, output_bw_2 = outputs_2
@@ -334,8 +368,8 @@ if __name__ == '__main__':
 
 		with tf.variable_scope("agg_1",reuse=tf.AUTO_REUSE):
 
-			aggregation_enc_fw = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)
-			aggregation_enc_bw = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)	
+			aggregation_enc_fw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
+			aggregation_enc_bw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)	
 
 			# Shape (batch_size, sequence_length, rnn_hidden_size)
 
@@ -344,7 +378,7 @@ if __name__ == '__main__':
 			    cell_fw=aggregation_enc_fw,
 			    cell_bw=aggregation_enc_bw,
 			    dtype=tf.float32,
-			    #sequence_length=[sentence_one_len],
+			   # sequence_length=length(sentence_one),
 			    inputs=match_1_2)
 
 			agg_output_fw_1, agg_output_bw_1 = agg_outputs_1
@@ -375,8 +409,8 @@ if __name__ == '__main__':
 		with tf.variable_scope("agg_2",reuse=tf.AUTO_REUSE):
 
 
-			aggregation_enc_fw_2 = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)
-			aggregation_enc_bw_2 = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)
+			aggregation_enc_fw_2 = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
+			aggregation_enc_bw_2 = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
 
 			# Shape (batch_size, sequence_length, rnn_hidden_size)
 
@@ -384,7 +418,7 @@ if __name__ == '__main__':
 			    cell_fw=aggregation_enc_fw_2,
 			    cell_bw=aggregation_enc_bw_2,
 			    dtype=tf.float32,
-			    #sequence_length=[sentence_two_len],
+			    #sequence_length=length(sentence_two),
 			    inputs=match_2_1)
 			 
 			agg_output_fw_2, agg_output_bw_2 = agg_outputs_2
@@ -454,8 +488,8 @@ if __name__ == '__main__':
 
 	with tf.Session() as sess:
 
-		trained_model = os.path.join('trained_model', 'model.ckpt')
-		trained_model_restore = os.path.join('trained_model', 'model.ckpt.meta')
+		trained_model = os.path.join('lstm_model', 'model.ckpt')
+		trained_model_restore = os.path.join('lstm_model', 'model.ckpt.meta')
 
 		if os.path.isfile(trained_model_restore):
 
@@ -463,7 +497,7 @@ if __name__ == '__main__':
 			saver.restore(sess, trained_model)
 
 		else:
-			train_writer = tf.summary.FileWriter("train_logs_adagrad/",sess.graph)
+			train_writer = tf.summary.FileWriter("lstm_logs_big/",sess.graph)
 			print "No saved model found...Training..."
 			sess.run(tf.global_variables_initializer(),feed_dict={X_init:x.weights})
 
@@ -532,4 +566,3 @@ if __name__ == '__main__':
 
 			print "Batch Test Accuracy:" + "{:.4f}".format(acc) + " Mean Batch Test Acc:" + "{:.4f}".format(sum_acc/i)
 
-		# x.context_layer()
