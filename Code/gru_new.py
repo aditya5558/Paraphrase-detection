@@ -1,10 +1,10 @@
 import numpy as np
 import tensorflow as tf
-#import nltk
 import pandas as pd
 import os
 import cPickle as cPickle
 from matching import bidirectional_match,get_last_output
+from data_loader import *
 
 def one_hot(batch_size,Y):
 
@@ -42,8 +42,8 @@ class model:
 
 	def load_glove(self):
 
-		glove_cache_file = os.path.join('cache', 'glove.pkl')
-		word2idx_cache_file = os.path.join('cache', 'word2idx.pkl')
+		glove_cache_file = os.path.join('cache_small', 'glove.pkl')
+		word2idx_cache_file = os.path.join('cache_small', 'word2idx.pkl')
 
 		if os.path.isfile(glove_cache_file):
 			print('Loading glove embeddings from : ' + glove_cache_file)
@@ -110,146 +110,21 @@ class model:
 		# print(self.weights)
 
 
-
-	def load_dataset(self):
-
-		with open(self.dataset_path_train,'r') as file1:
-			
-			self.sentence_one = []
-			self.sentence_two = []
-			self.y_true = []
-
-			max1 = 0
-			max2 = 0
-
-			for index, line in enumerate(file1):
-				
-				if index == 0:
-					continue
-
-
-
-				s_1 = []
-				s_2 = []
-
-				values = line.split("\t")
-				
-				#Sentence 1
-				words = values[3].split(" ")
-				
-				s_1.extend([self.word2idx.get(word,self.word2idx['UNK']) for word in words])
-
-				#Sentence 2
-				words = values[4].split(" ")
-				
-				s_2.extend([self.word2idx.get(word,self.word2idx['UNK']) for word in words])
-				
-
-				if len(s_1) > max1:
-					max1 = len(s_1)
-
-				if len(s_2) > max2:
-					max2 = len(s_2)
-
-				self.y_true.append(np.asarray(values[0]))
-
-				self.sentence_one.append(np.pad(s_1,(0,31-len(s_1)),'constant',constant_values=(0)))
-				self.sentence_two.append(np.pad(s_2,(0,31-len(s_2)),'constant',constant_values=(0)))
-
-
-				# self.sentence_one.append(np.asarray(s_1[0:self.sen_len]))
-				# self.sentence_two.append(np.asarray(s_2[0:self.sen_len]))
-
-		self.sentence_one = np.stack(self.sentence_one)
-		self.sentence_two = np.stack(self.sentence_two)
-		self.y_true = np.stack(self.y_true)
-
-		#print self.weights
-
-		print "Max_train:",max1,max2
-
-		print self.sentence_one.shape,self.sentence_two.shape,self.y_true.shape
-		
-		#print self.sentence_one
-
-		# self.features['word_indices'] = self.word_list
-
-		# print("Sentence 1 indices:",self.sentence_one)
-		# print("Sentence 2 indices:",self.sentence_two)
-
-		# self.sentence_one_len = len(self.sentence_one)
-		# self.sentence_two_len = len(self.sentence_two)
-
-		# print("Sentence 1 Length:",self.sentence_one_len)
-		# print("Sentence 2 Length:",self.sentence_two_len)
-
-
-	def load_dataset_test(self):
-
-		with open(self.dataset_path_test,'r') as file1:
-			
-			self.sentence_one_test = []
-			self.sentence_two_test = []
-			self.y_true_test = []
-
-			max1 = 0
-			max2 = 0
-
-			for index, line in enumerate(file1):
-				
-				if index == 0:
-					continue
-
-				s_1 = []
-				s_2 = []
-
-				values = line.split("\t")
-				
-				#Sentence 1
-				words = values[3].split(" ")
-				
-				s_1.extend([self.word2idx.get(word,self.word2idx['UNK']) for word in words])
-
-				#Sentence 2
-				words = values[4].split(" ")
-				
-				s_2.extend([self.word2idx.get(word,self.word2idx['UNK']) for word in words])
-				
-				if len(s_1) > max1:
-					max1 = len(s_1)
-
-				if len(s_2) > max2:
-					max2 = len(s_2)
-
-
-				self.y_true_test.append(np.asarray(values[0]))
-
-				self.sentence_one_test.append(np.pad(s_1,(0,31-len(s_1)),'constant',constant_values=(0)))
-				self.sentence_two_test.append(np.pad(s_2,(0,31-len(s_2)),'constant',constant_values=(0)))
-
-				# self.sentence_one_test.append(np.asarray(s_1[0:self.sen_len]))
-				# self.sentence_two_test.append(np.asarray(s_2[0:self.sen_len]))
-
-		print "Max_test:",max1,max2
-
-		self.sentence_one_test = np.stack(self.sentence_one_test)
-		self.sentence_two_test = np.stack(self.sentence_two_test)
-		self.y_true_test = np.stack(self.y_true_test)
-
-		#print self.weights
-		print self.sentence_one_test.shape,self.sentence_two_test.shape,self.y_true_test.shape
-
-
 if __name__ == '__main__':
 	
+
+	os.environ['CUDA_VISIBLE_DEVICES'] = ''
+
 	x = model()
 
 	x.sen_len = 31
 
 	x.load_glove()
-	x.load_dataset()
+	
 
-	x.load_dataset_test()
+	x.sentence_one,x.sentence_two,x.y_true = load_dataset(x.dataset_path_train,x.word2idx)
+
+	x.sentence_one_test,x.sentence_two_test,x.y_true_test = load_dataset_test(x.dataset_path_test,x.word2idx)
 
 	dropout_rate = 0.1
 	num_epoch = 20
@@ -276,8 +151,6 @@ if __name__ == '__main__':
 		embedded_sentence_one = tf.nn.embedding_lookup(embedding_weights,sentence_one)
 		embedded_sentence_two = tf.nn.embedding_lookup(embedding_weights,sentence_two)
 
-	# print embedded_sentence_one[0].get_shape()
-	# print embedded_sentence_two.get_shape()
 
 	with tf.variable_scope("Context_representation_layer"):
 
@@ -293,7 +166,7 @@ if __name__ == '__main__':
 		    cell_fw=sentence_enc_fw,
 		    cell_bw=sentence_enc_bw,
 		    dtype=tf.float32,
-		    # sequence_length=length(sentence_one),
+		    #sequence_length=length(sentence_one),
 		    inputs=embedded_sentence_one)
 
 		output_fw_1, output_bw_1 = outputs_1
@@ -320,7 +193,7 @@ if __name__ == '__main__':
 		    cell_fw=sentence_enc_fw,
 		    cell_bw=sentence_enc_bw,
 		    dtype=tf.float32,
-		    # sequence_length=length(sentence_two),
+		    #sequence_length=length(sentence_two),
 		    inputs=embedded_sentence_two)
 		 
 		output_fw_2, output_bw_2 = outputs_2
@@ -378,7 +251,7 @@ if __name__ == '__main__':
 			    cell_fw=aggregation_enc_fw,
 			    cell_bw=aggregation_enc_bw,
 			    dtype=tf.float32,
-			    # sequence_length=length(sentence_one),
+			   # sequence_length=length(sentence_one),
 			    inputs=match_1_2)
 
 			agg_output_fw_1, agg_output_bw_1 = agg_outputs_1
@@ -418,7 +291,7 @@ if __name__ == '__main__':
 			    cell_fw=aggregation_enc_fw_2,
 			    cell_bw=aggregation_enc_bw_2,
 			    dtype=tf.float32,
-			    # sequence_length=length(sentence_two),
+			    #sequence_length=length(sentence_two),
 			    inputs=match_2_1)
 			 
 			agg_output_fw_2, agg_output_bw_2 = agg_outputs_2
@@ -488,8 +361,8 @@ if __name__ == '__main__':
 
 	with tf.Session() as sess:
 
-		trained_model = os.path.join('gru_model', 'model.ckpt')
-		trained_model_restore = os.path.join('gru_model', 'model.ckpt.meta')
+		trained_model = os.path.join('test_model', 'model.ckpt')
+		trained_model_restore = os.path.join('test_model', 'model.ckpt.meta')
 
 		if os.path.isfile(trained_model_restore):
 
@@ -497,7 +370,7 @@ if __name__ == '__main__':
 			saver.restore(sess, trained_model)
 
 		else:
-			train_writer = tf.summary.FileWriter("gru_logs/",sess.graph)
+			train_writer = tf.summary.FileWriter("test_logs/",sess.graph)
 			print "No saved model found...Training..."
 			sess.run(tf.global_variables_initializer(),feed_dict={X_init:x.weights})
 
@@ -517,14 +390,6 @@ if __name__ == '__main__':
 					#print batch_s1.shape,batch_s2.shape,batch_y.shape
 
 					batch_y = one_hot(batch_size,batch_y.astype(int))
-
-					#print batch_y
-					
-
-					# batch_s1 = np.expand_dims(batch_s1[0][0:sen_len],1).T
-					# batch_s2 = np.expand_dims(batch_s2[0][0:sen_len],1).T
-
-					#print batch_s1.shape,batch_s2.shape
 
 					[summary,_,loss,acc] = sess.run([merged,train_op,loss_op,batch_accuracy],
 									feed_dict={X_init:x.weights,
