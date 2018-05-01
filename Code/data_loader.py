@@ -26,13 +26,17 @@ def load_dataset(dataset_path_train,word2idx):
 			values = line.split("\t")
 			
 			#Sentence 1
-			words = values[3].split(" ")
-			
+			# words = values[3].split(" ")
+			words = nltk.word_tokenize(values[3])
+			words = [word.lower() for word in words]
+
 			s_1.extend([word2idx.get(word,word2idx['UNK']) for word in words])
 
 			#Sentence 2
-			words = values[4].split(" ")
-			
+			# words = values[4].split(" ")
+			words = nltk.word_tokenize(values[4])
+			words = [word.lower() for word in words]
+
 			s_2.extend([word2idx.get(word,word2idx['UNK']) for word in words])
 			
 
@@ -44,8 +48,8 @@ def load_dataset(dataset_path_train,word2idx):
 
 			y_true.append(np.asarray(values[0]))
 
-			sentence_one.append(np.pad(s_1,(0,31-len(s_1)),'constant',constant_values=(0)))
-			sentence_two.append(np.pad(s_2,(0,31-len(s_2)),'constant',constant_values=(0)))
+			sentence_one.append(np.pad(s_1,(0,41-len(s_1)),'constant',constant_values=(0)))
+			sentence_two.append(np.pad(s_2,(0,41-len(s_2)),'constant',constant_values=(0)))
 
 
 			# self.sentence_one.append(np.asarray(s_1[0:self.sen_len]))
@@ -57,7 +61,7 @@ def load_dataset(dataset_path_train,word2idx):
 
 	#print self.weights
 
-	# print "Max_train:",max1,max2
+	print "Max_train:",max1,max2
 
 	print sentence_one.shape,sentence_two.shape,y_true.shape
 	
@@ -99,13 +103,17 @@ def load_dataset_test(dataset_path_test,word2idx):
 			values = line.split("\t")
 			
 			#Sentence 1
-			words = values[3].split(" ")
-			
+			# words = values[3].split(" ")
+			words = nltk.word_tokenize(values[3])
+			words = [word.lower() for word in words]
+
 			s_1.extend([word2idx.get(word,word2idx['UNK']) for word in words])
 
 			#Sentence 2
-			words = values[4].split(" ")
-			
+			# words = values[4].split(" ")
+			words = nltk.word_tokenize(values[4])
+			words = [word.lower() for word in words]
+
 			s_2.extend([word2idx.get(word,word2idx['UNK']) for word in words])
 			
 			if len(s_1) > max1:
@@ -117,13 +125,13 @@ def load_dataset_test(dataset_path_test,word2idx):
 
 			y_true_test.append(np.asarray(values[0]))
 
-			sentence_one_test.append(np.pad(s_1,(0,31-len(s_1)),'constant',constant_values=(0)))
-			sentence_two_test.append(np.pad(s_2,(0,31-len(s_2)),'constant',constant_values=(0)))
+			sentence_one_test.append(np.pad(s_1,(0,41-len(s_1)),'constant',constant_values=(0)))
+			sentence_two_test.append(np.pad(s_2,(0,41-len(s_2)),'constant',constant_values=(0)))
 
 			# self.sentence_one_test.append(np.asarray(s_1[0:self.sen_len]))
 			# self.sentence_two_test.append(np.asarray(s_2[0:self.sen_len]))
 
-	# print "Max_test:",max1,max2
+	print "Max_test:",max1,max2
 
 	sentence_one_test = np.stack(sentence_one_test)
 	sentence_two_test = np.stack(sentence_two_test)

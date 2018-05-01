@@ -5,8 +5,9 @@ import os
 import cPickle as cPickle
 from matching import bidirectional_match,get_last_output
 from data_loader import *
+from attention import *
 
-def log(message,file_path=os.path.join('glove_lstm','log.txt')):
+def log(message,file_path=os.path.join('glove_lstm_att','log.txt')):
 
     print message
     f1=open(file_path, 'a+')
@@ -43,12 +44,10 @@ class model:
 
 		self.glove_path = 'glove.840B.300d.txt'
 		#self.glove_path = 'word2vec.txt'
-		self.dataset_path_train = 'msr-paraphrase-corpus/msr_paraphrase_train.txt'
-		self.dataset_path_test = 'msr-paraphrase-corpus/msr_paraphrase_test.txt'
 		#self.dataset_path_train = 'paraphrase_data.tsv'
 		#self.dataset_path_test = 'paraphrase_data_test.tsv'
-		# self.dataset_path_train = 'quora_dataset/train.tsv'
-		# self.dataset_path_test = 'quora_dataset/test.tsv'
+		self.dataset_path_train = 'msr-paraphrase-corpus/msr_paraphrase_train.txt'
+		self.dataset_path_test = 'msr-paraphrase-corpus/msr_paraphrase_test.txt'
 
 		self.learning_rate = 0.0001
 
@@ -92,7 +91,7 @@ class model:
 					except ValueError:
 						print('Error at line ',index)
 
-					if index == 100000:
+					if index == 1000000:
 						break
 
 			self.embed_dim = len(self.weights[0])
@@ -138,7 +137,7 @@ if __name__ == '__main__':
 	x.sentence_one,x.sentence_two,x.y_true = load_dataset(x.dataset_path_train,x.word2idx)
 
 	x.sentence_one_test,x.sentence_two_test,x.y_true_test = load_dataset_test(x.dataset_path_test,x.word2idx)
-	# exit(0)
+
 	dropout_rate = 0.1
 	num_epoch = 20
 	batch_size = 256
@@ -243,7 +242,6 @@ if __name__ == '__main__':
 			training=False,
 			name="match_2_1_dropout")
 
-
 	## Aggregation Layer
 
 	with tf.variable_scope("Aggregation_layer"):
@@ -282,11 +280,11 @@ if __name__ == '__main__':
 
 			# Shape : (batch_size, rnn_hidden_size)
 
-			agg_output_fw_1_last = get_last_output(agg_output_fw_1)
-			agg_output_bw_1_last = get_last_output(agg_output_bw_1)
+			# agg_output_fw_1_last = get_last_output(agg_output_fw_1)
+			# agg_output_bw_1_last = get_last_output(agg_output_bw_1)
 
-			agg_last.append(agg_output_fw_1_last)
-			agg_last.append(agg_output_bw_1_last)
+			# agg_last.append(agg_output_fw_1_last)
+			# agg_last.append(agg_output_bw_1_last)
 
 		#tf.get_variable_scope().reuse_variables()
 
@@ -323,20 +321,27 @@ if __name__ == '__main__':
 
 			# Shape : (batch_size, rnn_hidden_size)
 
-			agg_output_fw_2_last = get_last_output(agg_output_fw_2)
-			agg_output_bw_2_last = get_last_output(agg_output_bw_2)
+			# agg_output_fw_2_last = get_last_output(agg_output_fw_2)
+			# agg_output_bw_2_last = get_last_output(agg_output_bw_2)
 
 
-			agg_last.append(agg_output_fw_2_last)
-			agg_last.append(agg_output_bw_2_last)
+			# agg_last.append(agg_output_fw_2_last)
+			# agg_last.append(agg_output_bw_2_last)
 
 		# Shape : (batch_size, 4*rnn_hidden_size)
 
-		combined_agg_last = tf.concat(agg_last,1)
+		# combined_agg_last = tf.concat(agg_last,1)
 
+	with tf.variable_scope("Attention_layer"):
+
+		attention_1 = attention_model((agg_output_fw_1,agg_output_bw_1),context_rnn_hidden_size)
+		attention_2 = attention_model((agg_output_fw_2,agg_output_bw_2),context_rnn_hidden_size)
+		agg_last = [attention_1,attention_2]
+		combined_agg_last = tf.concat(agg_last,1)
 
 	##Prediction Layer
 	with tf.variable_scope("Prediction_layer",reuse=tf.AUTO_REUSE):
+
 
 		prediction_layer_1 = tf.layers.dense(combined_agg_last,
 			combined_agg_last.get_shape().as_list()[1],
@@ -374,8 +379,8 @@ if __name__ == '__main__':
 
 	with tf.Session() as sess:
 
-		trained_model = os.path.join('glove_lstm', 'model.ckpt')
-		trained_model_restore = os.path.join('glove_lstm', 'model.ckpt.meta')
+		trained_model = os.path.join('glove_lstm_att', 'model.ckpt')
+		trained_model_restore = os.path.join('glove_lstm_att', 'model.ckpt.meta')
 
 		if os.path.isfile(trained_model_restore):
 
@@ -383,7 +388,7 @@ if __name__ == '__main__':
 			saver.restore(sess, trained_model)
 
 		else:
-			train_writer = tf.summary.FileWriter("glove_lstm/",sess.graph)
+			train_writer = tf.summary.FileWriter("glove_lstm_att/",sess.graph)
 			print "No saved model found...Training..."
 			sess.run(tf.global_variables_initializer(),feed_dict={X_init:x.weights})
 
@@ -417,7 +422,7 @@ if __name__ == '__main__':
 					sum_acc += acc
 
 					log("Epoch:" + str(epoch+1) + " Step:" + str(step) + " Loss:" + "{:.4f}".format(loss) + " Batch Acc:" + "{:.4f}".format(acc) + " Mean Batch Acc:" + "{:.4f}".format(sum_acc/i))
-		
+				
 			save_path = saver.save(sess, trained_model)
 			print "Model saved in path: %s" % save_path
 

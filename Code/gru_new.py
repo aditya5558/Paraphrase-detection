@@ -6,6 +6,14 @@ import cPickle as cPickle
 from matching import bidirectional_match,get_last_output
 from data_loader import *
 
+def log(message,file_path=os.path.join('glove_gru','log.txt')):
+
+    print message
+    f1=open(file_path, 'a+')
+    f1.write(message)
+    f1.write("\n")
+    f1.close()
+
 def one_hot(batch_size,Y):
 
     B = np.zeros((batch_size,2))
@@ -34,6 +42,9 @@ class model:
 		self.word_list = []
 
 		self.glove_path = 'glove.840B.300d.txt'
+		#self.glove_path = 'word2vec.txt'
+		#self.dataset_path_train = 'paraphrase_data.tsv'
+		#self.dataset_path_test = 'paraphrase_data_test.tsv'
 		self.dataset_path_train = 'msr-paraphrase-corpus/msr_paraphrase_train.txt'
 		self.dataset_path_test = 'msr-paraphrase-corpus/msr_paraphrase_test.txt'
 
@@ -42,8 +53,8 @@ class model:
 
 	def load_glove(self):
 
-		glove_cache_file = os.path.join('cache_small', 'glove.pkl')
-		word2idx_cache_file = os.path.join('cache_small', 'word2idx.pkl')
+		glove_cache_file = os.path.join('cache', 'glove.pkl')
+		word2idx_cache_file = os.path.join('cache', 'word2idx.pkl')
 
 		if os.path.isfile(glove_cache_file):
 			print('Loading glove embeddings from : ' + glove_cache_file)
@@ -113,11 +124,11 @@ class model:
 if __name__ == '__main__':
 	
 
-	os.environ['CUDA_VISIBLE_DEVICES'] = ''
+	#os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 	x = model()
 
-	x.sen_len = 31
+	x.sen_len = 41
 
 	x.load_glove()
 	
@@ -361,8 +372,8 @@ if __name__ == '__main__':
 
 	with tf.Session() as sess:
 
-		trained_model = os.path.join('test_model', 'model.ckpt')
-		trained_model_restore = os.path.join('test_model', 'model.ckpt.meta')
+		trained_model = os.path.join('glove_gru', 'model.ckpt')
+		trained_model_restore = os.path.join('glove_gru', 'model.ckpt.meta')
 
 		if os.path.isfile(trained_model_restore):
 
@@ -370,7 +381,7 @@ if __name__ == '__main__':
 			saver.restore(sess, trained_model)
 
 		else:
-			train_writer = tf.summary.FileWriter("test_logs/",sess.graph)
+			train_writer = tf.summary.FileWriter("glove_gru/",sess.graph)
 			print "No saved model found...Training..."
 			sess.run(tf.global_variables_initializer(),feed_dict={X_init:x.weights})
 
@@ -403,7 +414,7 @@ if __name__ == '__main__':
 
 					sum_acc += acc
 
-					print "Epoch:" + str(epoch+1) + " Step:" + str(step) + " Loss:" + "{:.4f}".format(loss) + " Batch Acc:" + "{:.4f}".format(acc) + " Mean Batch Acc:" + "{:.4f}".format(sum_acc/i)
+					log("Epoch:" + str(epoch+1) + " Step:" + str(step) + " Loss:" + "{:.4f}".format(loss) + " Batch Acc:" + "{:.4f}".format(acc) + " Mean Batch Acc:" + "{:.4f}".format(sum_acc/i))
 		
 			save_path = saver.save(sess, trained_model)
 			print "Model saved in path: %s" % save_path
@@ -429,5 +440,5 @@ if __name__ == '__main__':
 							})
 			sum_acc += acc
 
-			print "Batch Test Accuracy:" + "{:.4f}".format(acc) + " Mean Batch Test Acc:" + "{:.4f}".format(sum_acc/i)
+			log("Batch Test Accuracy:" + "{:.4f}".format(acc) + " Mean Batch Test Acc:" + "{:.4f}".format(sum_acc/i))
 

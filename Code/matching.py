@@ -30,7 +30,7 @@ def cosine_matrix(x1,x2):
 	# Shape : (batch_size, sequence_length, 1, rnn_hidden_size)
 	x2_exp = tf.expand_dims(x2,2)
 
-	# Shape : (batch_size, sequence_length, sequence_length)
+	# Shape : (batch_size, sequence_length, sequence_length, rnn_hidden_size)
 	cosine_sim_matrix = cosine_sim(x1_exp,x2_exp)
 
 	return cosine_sim_matrix
