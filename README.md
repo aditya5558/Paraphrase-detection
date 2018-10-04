@@ -35,4 +35,3 @@ Glove : https://nlp.stanford.edu/projects/glove/
 
 Word2vec : https://code.google.com/archive/p/word2vec/
 
-Fasttext : https://github.com/icoxfog417/fastTextJapaneseTutorial
