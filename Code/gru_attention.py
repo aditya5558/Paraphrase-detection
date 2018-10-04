@@ -18,22 +18,18 @@ def log(message,file_path=os.path.join('glove_gru_att','log.txt')):
 def one_hot(batch_size,Y):
 
     B = np.zeros((batch_size,2))
-
     B[np.arange(batch_size),Y] = 1
-
     return B.astype(int)
 
 def length(sequence):
 	
 	used = tf.sign(sequence)
 	length = tf.reduce_sum(used, 1)
-	length = tf.cast(length, tf.int32)
-	
+	length = tf.cast(length, tf.int32)	
 	return length
 
 class model:
-
-
+	
 	def __init__(self):
 
 		self.word2idx = {'PAD' : 0}
@@ -48,7 +44,6 @@ class model:
 		#self.dataset_path_test = 'paraphrase_data_test.tsv'
 		self.dataset_path_train = 'msr-paraphrase-corpus/msr_paraphrase_train.txt'
 		self.dataset_path_test = 'msr-paraphrase-corpus/msr_paraphrase_test.txt'
-
 		self.learning_rate = 0.0001
 
 
@@ -70,12 +65,9 @@ class model:
 
 			self.embed_dim = len(self.weights[0])
 			self.vocab_size = self.weights.shape[0]
-			# self.word2idx['UNK'] = len(self.weights) - 1
 
-		else:
-            
+		else:            
 			print('Creating glove embeddings:')
-
 			with open(self.glove_path,'r') as file:
 				
 				for index, line in enumerate(file):
@@ -100,8 +92,7 @@ class model:
 			self.word2idx['UNK'] = len(self.weights)
 			self.weights.append(np.random.randn(self.embed_dim))
 			
-			self.weights = np.stack(self.weights)
-			
+			self.weights = np.stack(self.weights)			
 			self.vocab_size = self.weights.shape[0]
 
 			print('Saving word2idx to: ' + word2idx_cache_file)
@@ -115,9 +106,7 @@ class model:
 			print('Done!')
            
 
-		print(self.vocab_size,self.embed_dim)
-
-		
+		print(self.vocab_size,self.embed_dim)	
 		print("Shape of glove embeddings:",self.weights.shape)
 		# print(self.weights)
 
@@ -125,24 +114,17 @@ class model:
 if __name__ == '__main__':
 	
 
-	#os.environ['CUDA_VISIBLE_DEVICES'] = ''
-
+	#os.environ['CUDA_VISIBLE_DEVICES'] = '
 	x = model()
-
 	x.sen_len = 41
-
 	x.load_glove()
-	
-
 	x.sentence_one,x.sentence_two,x.y_true = load_dataset(x.dataset_path_train,x.word2idx)
-
 	x.sentence_one_test,x.sentence_two_test,x.y_true_test = load_dataset_test(x.dataset_path_test,x.word2idx)
 
 	dropout_rate = 0.1
 	num_epoch = 20
 	batch_size = 256
 	
- 
 	X_init = tf.placeholder(tf.float32, shape=(x.vocab_size,x.embed_dim))
 
 	sentence_one = tf.placeholder("int32",[batch_size, x.sen_len],name="sentence_one")
@@ -154,9 +136,6 @@ if __name__ == '__main__':
 		name = 'embedding_weights',
 		initializer = X_init,
 		trainable = False)
-
-
-	# print sentence_one_len
 
 	with tf.name_scope("Word_embeddings"):
 
@@ -173,7 +152,6 @@ if __name__ == '__main__':
 
 		# Sentence 1
 		# Shape (batch_size, sequence_length, rnn_hidden_size)
-
 		outputs_1, states_1  = tf.nn.bidirectional_dynamic_rnn(
 		    cell_fw=sentence_enc_fw,
 		    cell_bw=sentence_enc_bw,
@@ -198,7 +176,6 @@ if __name__ == '__main__':
 		tf.get_variable_scope().reuse_variables()
 
 		#Sentence 2
-
 		# Shape (batch_size, sequence_length, rnn_hidden_size)
 
 		outputs_2, states_2  = tf.nn.bidirectional_dynamic_rnn(
@@ -227,8 +204,6 @@ if __name__ == '__main__':
 	with tf.variable_scope("Matching_layer"):
 		
 		# Shape (batch_size, sequence_length, 8*perspectives)
-
-
 		match_1_2,match_2_1 = bidirectional_match(output_fw_1,output_bw_1,output_fw_2,output_bw_2)
 
 		match_1_2 = tf.layers.dropout(
@@ -247,7 +222,6 @@ if __name__ == '__main__':
 	with tf.variable_scope("Aggregation_layer"):
 
 		agg_last = []
-
 		# Sentence 1
 
 		with tf.variable_scope("agg_1",reuse=tf.AUTO_REUSE):
@@ -256,7 +230,6 @@ if __name__ == '__main__':
 			aggregation_enc_bw = tf.nn.rnn_cell.GRUCell(context_rnn_hidden_size)	
 
 			# Shape (batch_size, sequence_length, rnn_hidden_size)
-
 
 			agg_outputs_1, agg_states_1  = tf.nn.bidirectional_dynamic_rnn(
 			    cell_fw=aggregation_enc_fw,
@@ -277,16 +250,6 @@ if __name__ == '__main__':
 				rate=dropout_rate,
 				training=False,
 				name="agg_1_bw_dropout")
-
-			# Shape : (batch_size, rnn_hidden_size)
-
-			# agg_output_fw_1_last = get_last_output(agg_output_fw_1)
-			# agg_output_bw_1_last = get_last_output(agg_output_bw_1)
-
-			# agg_last.append(agg_output_fw_1_last)
-			# agg_last.append(agg_output_bw_1_last)
-
-		#tf.get_variable_scope().reuse_variables()
 
 		#Sentence 2
 
@@ -318,20 +281,6 @@ if __name__ == '__main__':
 				training=False,
 				name="agg_2_bw_dropout")
 
-
-			# Shape : (batch_size, rnn_hidden_size)
-
-			# agg_output_fw_2_last = get_last_output(agg_output_fw_2)
-			# agg_output_bw_2_last = get_last_output(agg_output_bw_2)
-
-
-			# agg_last.append(agg_output_fw_2_last)
-			# agg_last.append(agg_output_bw_2_last)
-
-		# Shape : (batch_size, 4*rnn_hidden_size)
-
-		# combined_agg_last = tf.concat(agg_last,1)
-
 	with tf.variable_scope("Attention_layer"):
 
 		attention_1 = attention_model((agg_output_fw_1,agg_output_bw_1),context_rnn_hidden_size)
@@ -352,8 +301,6 @@ if __name__ == '__main__':
 			rate=dropout_rate,
 			training=False,
 			name="pred_dropout")
-
-
 
 		prediction_layer_2 = tf.layers.dense(prediction_layer_1,2,name="pred_2")
 
@@ -397,14 +344,11 @@ if __name__ == '__main__':
 			for epoch in range(num_epoch):
 
 				for step in range(x.sentence_one.shape[0]/batch_size):
-
 					i += 1
-
 					batch_s1,batch_s2,batch_y = x.sentence_one[step*batch_size:(step+1)*batch_size],\
 												x.sentence_two[step*batch_size:(step+1)*batch_size],\
 												x.y_true[step*batch_size:(step+1)*batch_size]
 
-					#print batch_s1.shape,batch_s2.shape,batch_y.shape
 
 					batch_y = one_hot(batch_size,batch_y.astype(int))
 
@@ -416,8 +360,6 @@ if __name__ == '__main__':
 									})
 
 					train_writer.add_summary(summary, i)
-
-
 					sum_acc += acc
 
 					log("Epoch:" + str(epoch+1) + " Step:" + str(step) + " Loss:" + "{:.4f}".format(loss) + " Batch Acc:" + "{:.4f}".format(acc) + " Mean Batch Acc:" + "{:.4f}".format(sum_acc/i))
@@ -446,5 +388,4 @@ if __name__ == '__main__':
 							})
 			sum_acc += acc
 
-			log("Batch Test Accuracy:" + "{:.4f}".format(acc) + " Mean Batch Test Acc:" + "{:.4f}".format(sum_acc/i))
-
+			log("Batch Test Accuracy:" + "{:.4f}".format(acc) + " Mean Batch Test Accuracy:" + "{:.4f}".format(sum_acc/i))
