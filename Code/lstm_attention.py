@@ -18,9 +18,7 @@ def log(message,file_path=os.path.join('glove_lstm_att','log.txt')):
 def one_hot(batch_size,Y):
 
     B = np.zeros((batch_size,2))
-
     B[np.arange(batch_size),Y] = 1
-
     return B.astype(int)
 
 def length(sequence):
@@ -32,8 +30,7 @@ def length(sequence):
 	return length
 
 class model:
-
-
+	
 	def __init__(self):
 
 		self.word2idx = {'PAD' : 0}
@@ -48,7 +45,6 @@ class model:
 		#self.dataset_path_test = 'paraphrase_data_test.tsv'
 		self.dataset_path_train = 'msr-paraphrase-corpus/msr_paraphrase_train.txt'
 		self.dataset_path_test = 'msr-paraphrase-corpus/msr_paraphrase_test.txt'
-
 		self.learning_rate = 0.0001
 
 
@@ -75,7 +71,6 @@ class model:
 		else:
             
 			print('Creating glove embeddings:')
-
 			with open(self.glove_path,'r') as file:
 				
 				for index, line in enumerate(file):
@@ -123,25 +118,19 @@ class model:
 
 
 if __name__ == '__main__':
-	
 
 	#os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 	x = model()
-
 	x.sen_len = 41
-
 	x.load_glove()
 	
-
 	x.sentence_one,x.sentence_two,x.y_true = load_dataset(x.dataset_path_train,x.word2idx)
-
 	x.sentence_one_test,x.sentence_two_test,x.y_true_test = load_dataset_test(x.dataset_path_test,x.word2idx)
 
 	dropout_rate = 0.1
 	num_epoch = 20
-	batch_size = 256
-	
+	batch_size = 256	
  
 	X_init = tf.placeholder(tf.float32, shape=(x.vocab_size,x.embed_dim))
 
@@ -155,7 +144,6 @@ if __name__ == '__main__':
 		initializer = X_init,
 		trainable = False)
 
-
 	# print sentence_one_len
 
 	with tf.name_scope("Word_embeddings"):
@@ -163,11 +151,9 @@ if __name__ == '__main__':
 		embedded_sentence_one = tf.nn.embedding_lookup(embedding_weights,sentence_one)
 		embedded_sentence_two = tf.nn.embedding_lookup(embedding_weights,sentence_two)
 
-
 	with tf.variable_scope("Context_representation_layer"):
 
 		context_rnn_hidden_size = 100
-
 		sentence_enc_fw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
 		sentence_enc_bw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
 
@@ -198,7 +184,6 @@ if __name__ == '__main__':
 		tf.get_variable_scope().reuse_variables()
 
 		#Sentence 2
-
 		# Shape (batch_size, sequence_length, rnn_hidden_size)
 
 		outputs_2, states_2  = tf.nn.bidirectional_dynamic_rnn(
@@ -227,10 +212,7 @@ if __name__ == '__main__':
 	with tf.variable_scope("Matching_layer"):
 		
 		# Shape (batch_size, sequence_length, 8*perspectives)
-
-
 		match_1_2,match_2_1 = bidirectional_match(output_fw_1,output_bw_1,output_fw_2,output_bw_2)
-
 		match_1_2 = tf.layers.dropout(
 			match_1_2,
 			rate=dropout_rate,
@@ -247,16 +229,13 @@ if __name__ == '__main__':
 	with tf.variable_scope("Aggregation_layer"):
 
 		agg_last = []
-
 		# Sentence 1
-
 		with tf.variable_scope("agg_1",reuse=tf.AUTO_REUSE):
 
 			aggregation_enc_fw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
 			aggregation_enc_bw = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)	
 
 			# Shape (batch_size, sequence_length, rnn_hidden_size)
-
 
 			agg_outputs_1, agg_states_1  = tf.nn.bidirectional_dynamic_rnn(
 			    cell_fw=aggregation_enc_fw,
@@ -278,20 +257,9 @@ if __name__ == '__main__':
 				training=False,
 				name="agg_1_bw_dropout")
 
-			# Shape : (batch_size, rnn_hidden_size)
-
-			# agg_output_fw_1_last = get_last_output(agg_output_fw_1)
-			# agg_output_bw_1_last = get_last_output(agg_output_bw_1)
-
-			# agg_last.append(agg_output_fw_1_last)
-			# agg_last.append(agg_output_bw_1_last)
-
-		#tf.get_variable_scope().reuse_variables()
-
 		#Sentence 2
 
 		with tf.variable_scope("agg_2",reuse=tf.AUTO_REUSE):
-
 
 			aggregation_enc_fw_2 = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
 			aggregation_enc_bw_2 = tf.nn.rnn_cell.LSTMCell(context_rnn_hidden_size,state_is_tuple=True)
@@ -318,20 +286,6 @@ if __name__ == '__main__':
 				training=False,
 				name="agg_2_bw_dropout")
 
-
-			# Shape : (batch_size, rnn_hidden_size)
-
-			# agg_output_fw_2_last = get_last_output(agg_output_fw_2)
-			# agg_output_bw_2_last = get_last_output(agg_output_bw_2)
-
-
-			# agg_last.append(agg_output_fw_2_last)
-			# agg_last.append(agg_output_bw_2_last)
-
-		# Shape : (batch_size, 4*rnn_hidden_size)
-
-		# combined_agg_last = tf.concat(agg_last,1)
-
 	with tf.variable_scope("Attention_layer"):
 
 		attention_1 = attention_model((agg_output_fw_1,agg_output_bw_1),context_rnn_hidden_size)
@@ -341,8 +295,7 @@ if __name__ == '__main__':
 
 	##Prediction Layer
 	with tf.variable_scope("Prediction_layer",reuse=tf.AUTO_REUSE):
-
-
+		
 		prediction_layer_1 = tf.layers.dense(combined_agg_last,
 			combined_agg_last.get_shape().as_list()[1],
 			activation=tf.nn.tanh,
@@ -354,8 +307,6 @@ if __name__ == '__main__':
 			training=False,
 			name="pred_dropout")
 
-
-
 		prediction_layer_2 = tf.layers.dense(prediction_layer_1,2,name="pred_2")
 
 	with tf.variable_scope("Train_loss_and_acc"):
@@ -364,7 +315,6 @@ if __name__ == '__main__':
 		loss_op = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=Y,logits=prediction_layer_2))
 		
 		tf.summary.scalar('loss',loss_op)		
-
 		correct_predictions = tf.equal(tf.argmax(y_pred, 1),tf.argmax(Y, 1))
 
 		batch_accuracy = tf.reduce_mean(tf.cast(correct_predictions,"float"))
@@ -376,14 +326,12 @@ if __name__ == '__main__':
 	merged = tf.summary.merge_all()
 	saver = tf.train.Saver()
 
-
 	with tf.Session() as sess:
 
 		trained_model = os.path.join('glove_lstm_att', 'model.ckpt')
 		trained_model_restore = os.path.join('glove_lstm_att', 'model.ckpt.meta')
 
 		if os.path.isfile(trained_model_restore):
-
 			print "Loading saved model..."
 			saver.restore(sess, trained_model)
 
@@ -398,14 +346,10 @@ if __name__ == '__main__':
 			for epoch in range(num_epoch):
 
 				for step in range(x.sentence_one.shape[0]/batch_size):
-
 					i += 1
-
 					batch_s1,batch_s2,batch_y = x.sentence_one[step*batch_size:(step+1)*batch_size],\
 												x.sentence_two[step*batch_size:(step+1)*batch_size],\
 												x.y_true[step*batch_size:(step+1)*batch_size]
-
-					#print batch_s1.shape,batch_s2.shape,batch_y.shape
 
 					batch_y = one_hot(batch_size,batch_y.astype(int))
 
@@ -432,7 +376,6 @@ if __name__ == '__main__':
 		for step in range(x.sentence_one_test.shape[0]/batch_size):
 
 			i += 1
-
 			batch_s1,batch_s2,batch_y = x.sentence_one_test[step*batch_size:(step+1)*batch_size],\
 										x.sentence_two_test[step*batch_size:(step+1)*batch_size],\
 										x.y_true_test[step*batch_size:(step+1)*batch_size]
@@ -446,6 +389,5 @@ if __name__ == '__main__':
 							Y:batch_y
 							})
 			sum_acc += acc
-
-			log("Batch Test Accuracy:" + "{:.4f}".format(acc) + " Mean Batch Test Acc:" + "{:.4f}".format(sum_acc/i))
+			log("Batch Test Accuracy:" + "{:.4f}".format(acc) + " Mean Batch Test Accuracy:" + "{:.4f}".format(sum_acc/i))
 
